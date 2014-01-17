@@ -19,11 +19,8 @@ using namespace std;
 
 class Gde3Algorithm: public ISearchAlgorithm
 {
-	
-	
+		
 	double F,CR;
-	
-//	bool checkFeasible(Variant & varEval);
 	
 public:
 	VariantSpace* variantSpace;
@@ -33,32 +30,26 @@ public:
 	
 	std::size_t populationSize;
 	vector<Variant> population;	// instead of scenario's here handled as population
-	set<std::string> populElem;
-	
+	set<std::string> populElem;	
 			
 	double optimalObjVal; 				 // can be replaced by vector for MO functions
 	
 	map<int,int> parentChildMap;
-	vector<int> tobeDropped;
+	set<int> tobeDropped;
 	
 	string logString; // keeps track of all activities, helps to debug
 	
 public:
 	Gde3Algorithm();
 	virtual ~Gde3Algorithm();
-	
-	
-	
+		
 	void addSearchSpace(VariantSpace*);
 	void createScenarios();
 	void doSearch() {}
 	int getOptimum();	
 	bool isSearchFinished() const;
 	void setSearchFinished(bool searchFinished);
-			
-//	void evaluate(int parentIdx, int childIdx);
-//	double evaluate(Variant & member); // Function to print results, can be removed
-	
+				
 	TuningPoint * createTuningPoint(long id, string tuningActionName, tunableType parameterType, int minRange,
 					  					int maxRange);
 	void cleanupPopulation();

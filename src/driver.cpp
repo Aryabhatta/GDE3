@@ -17,6 +17,7 @@ vector<Variant> recentPopulation;
 int samePopulationVector = 0;
 string toString( Variant & variant, vector<TuningPoint*> & TuningPointVec );
 
+
 bool checkFeasible(Variant & varEval, Gde3Algorithm & algorithm ) {
 	
 	bool vectorFeasible = true;
@@ -24,7 +25,6 @@ bool checkFeasible(Variant & varEval, Gde3Algorithm & algorithm ) {
 	map<TuningPoint*,int> vectormap = varEval.getValue();
 	
 	for(iter = algorithm.tuningPointVec.begin();iter != algorithm.tuningPointVec.end(); ++iter) {		
-		
 		const TuningPointRange & tuningPointRange = (*iter)->getTpRange();		
 		if(	vectormap[*iter] < tuningPointRange.getMin() ||
 			vectormap[*iter] > tuningPointRange.getMax() ) {
@@ -46,8 +46,12 @@ std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm
 	for(std::size_t i=0; i < algorithm.tuningPointVec.size(); i++) {
 		int value = vectormap[algorithm.tuningPointVec[i]];
 		tuningParam.push_back(value);
-	}	
-		
+	}
+	
+	/* Computing Ackley's function (Objective function)
+	 * f(x,y) = -20 exp(-0.2 * Sqrt(0.5*(x^2+y^2))) - exp(0.5 * (cos(2*pi*x) + cos(2*pi*y))) + 20 + e 
+	 * 
+	 */
 	double objFunc1 = -20 * exp(-0.2 * (sqrt(0.5 * (tuningParam[0]*tuningParam[0]+tuningParam[1]*tuningParam[1])))) 
 	                  - exp(0.5 * (cos(2*M_PI*tuningParam[0]) + cos(2*M_PI*tuningParam[1]))) + 20 + M_E;
 	
@@ -63,14 +67,16 @@ void evaluate(int parentIdx, int childIdx, Gde3Algorithm & algorithm) {	// This 
 	// check for feasibility first, make sure it obeys all constraints
 	if(!checkFeasible(parent,algorithm)) {		
 		// if not feasible, drop it from population
-		algorithm.tobeDropped.push_back(parentIdx);
-		return;
+		algorithm.tobeDropped.insert(parentIdx);
+		cout << "Index: " << parentIdx << " added to TOBEDROPPED !" << endl;
+ 		return;
 	}
 	
 	// check for feasibility first, make sure it obeys all constraints
 	if(!checkFeasible(child,algorithm)) {		
 		// if not feasible, drop it from population
-		algorithm.tobeDropped.push_back(childIdx);
+		algorithm.tobeDropped.insert(childIdx);
+		cout << "Index: " << childIdx << " added to TOBEDROPPED !" << endl;
 		return;
 	}
 	
@@ -82,11 +88,6 @@ void evaluate(int parentIdx, int childIdx, Gde3Algorithm & algorithm) {	// This 
 	int yParent = parentMap[algorithm.tuningPointVec[1]];
 	int xChild = childMap[algorithm.tuningPointVec[0]];
 	int yChild = childMap[algorithm.tuningPointVec[1]];
-	
-	/* Computing Ackley's function (Objective function)
-	 * f(x,y) = -20 exp(-0.2 * Sqrt(0.5*(x^2+y^2))) - exp(0.5 * (cos(2*pi*x) + cos(2*pi*y))) + 20 + e 
-	 * 
-	 */
 	
 	double objValuePar = 0.0;
 	double objValueChd = 0.0;
@@ -109,16 +110,14 @@ void evaluate(int parentIdx, int childIdx, Gde3Algorithm & algorithm) {	// This 
 	} else {
 		objValueChd = evalVec[childStr];
 	}
-
 	
 	// TODO: specific to problem, this is a minimization problem
 	if( objValuePar == objValueChd ) { // both are non-dominant, decide what to do 
-		algorithm.tobeDropped.push_back(childIdx); // TODO: For time being, change upon Crowding Distance
-										 			// Not happening for Ackley's function
+		algorithm.tobeDropped.insert(childIdx); // TODO: For time being, change upon Crowding Distance
 	} else if( objValuePar < objValueChd ) {
-		algorithm.tobeDropped.push_back(childIdx);
+		algorithm.tobeDropped.insert(childIdx);
 	} else {
-		algorithm.tobeDropped.push_back(parentIdx);
+		algorithm.tobeDropped.insert(parentIdx);
 	}
 
 	stringstream ss1, ss2;
@@ -132,24 +131,12 @@ void evaluate(int parentIdx, int childIdx, Gde3Algorithm & algorithm) {	// This 
 	return;
 }
 
-double evaluate(Variant & member, Gde3Algorithm & algorithm) {
-	
-	map<TuningPoint*, int> vectorMap = member.getValue();
-	
-	
-	int x = vectorMap[algorithm.tuningPointVec[0]];
-	int y = vectorMap[algorithm.tuningPointVec[1]];
-	
-	double objValue = -20 * exp(-0.2 * (sqrt(0.5 * (x*x+y*y)))) - exp(0.5 * (cos(2*M_PI*x) + cos(2*M_PI*y))) + 20 + M_E;
-	return objValue;
-	
-}
 void cleanupPopulation( Gde3Algorithm & algorithm) {
 	
 	// End of iteration, cleanup mess
 	vector<Variant> popuNextGen;
 	for(std::size_t i=0; i< algorithm.population.size(); i++) {		
-		if(std::find(algorithm.tobeDropped.begin(), algorithm.tobeDropped.end(),i) == algorithm.tobeDropped.end()) { //not found in tobeDropped
+		if(algorithm.tobeDropped.count(i) != 1 ) { //not found
 			popuNextGen.push_back(algorithm.population[i]);
 		} else {
 			// found in tobeDropped, remove from evalVec
@@ -224,16 +211,13 @@ void evaluatePopulation(Gde3Algorithm & algorithm) {
 	for(vector<Variant>::iterator iter= algorithm.population.begin();iter!= algorithm.population.end(); ++iter) {
 		
 		vector<double> objVal = evalObjFunction(*iter, algorithm);
-//		double objVal = evaluate(*iter, algorithm);
 		
 		algorithm.logString.append("(");
 		for(size_t i=0; i<objVal.size(); i++) {
 			stringstream ss1;
 			ss1 << objVal[i];
-//			ss1 << objVal;
 			algorithm.logString.append( ss1.str() + ",");
 		}
-//		algorithm.logString.erase(algorithm.logString.find_last_of(','),1);
 		algorithm.logString.append(")");
 	}
 	
@@ -287,7 +271,6 @@ TuningPoint * createTuningPoint(long id, string tuningActionName, tunableType pa
 	TuningPointRange tuningPointNewRange(minRange,maxRange); 
 	tuningPointNew->setTpRange(tuningPointNewRange);
 	
-	// TODO: Currently, not specified anything as restriction, to change
 	Restriction restriction;
 	tuningPointNew->setRestriction(restriction);
 	
@@ -340,18 +323,18 @@ int main(int argc, char * argv[]) {
 	
 	// Iteration starts here
 	for(iGen=0; iGen < noGenerations; iGen++) {
-		cout << "IterationNo: " << iGen << endl;
-		cout << algorithm.logString << endl;
-		cout << "createScenarios:" << endl;
+//		cout << "IterationNo: " << iGen << endl;
+//		cout << algorithm.logString << endl;
+//		cout << "createScenarios:" << endl;
 		algorithm.createScenarios();
 		
-		cout << "evaluatePopulation:" << endl;
+//		cout << "evaluatePopulation:" << endl;
 		evaluatePopulation(algorithm); // Will be replaced by evaluate in Periscope
 		
-		cout << "checkSearchFinished:" << endl;
+//		cout << "checkSearchFinished:" << endl;
 		checkSearchFinished(algorithm);
 		
-		cout << "isSearchFinished:" << endl;
+//		cout << "isSearchFinished:" << endl;
 		if(algorithm.isSearchFinished()) {
 			break;
 		}				
