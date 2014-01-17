@@ -12,14 +12,14 @@ CFITSIO =
 # Options for FFTW
 FFTW = -lfftw3 -lfftw3_omp
 
-multiobj: driver.o GdeAlgorithm.o VariantSpace.o Variant.o TuningPoint.o TuningPointRange.o TuningPointConstraint.o Constraint.o Restriction.o
-	$(CC) -o multiobj driver.o GdeAlgorithm.o VariantSpace.o Variant.o TuningPoint.o TuningPointRange.o TuningPointConstraint.o Constraint.o Restriction.o
+multiobj: driver.o Gde3Algorithm.o VariantSpace.o Variant.o TuningPoint.o TuningPointRange.o TuningPointConstraint.o Constraint.o Restriction.o
+	$(CC) -o multiobj driver.o Gde3Algorithm.o VariantSpace.o Variant.o TuningPoint.o TuningPointRange.o TuningPointConstraint.o Constraint.o Restriction.o
 
 driver.o: ./src/driver.cpp
 	$(CC) $(CFLAGS) -c ./src/driver.cpp
         
-GdeAlgorithm.o: ./src/searchalgorithms/GdeAlgorithm.cpp ./src/searchalgorithms/GdeAlgorithm.h
-	$(CC) $(CFLAGS) -c ./src/searchalgorithms/GdeAlgorithm.cpp
+Gde3Algorithm.o: ./src/searchalgorithms/Gde3Algorithm.cpp ./src/searchalgorithms/Gde3Algorithm.h
+	$(CC) $(CFLAGS) -c ./src/searchalgorithms/Gde3Algorithm.cpp
 
 VariantSpace.o: ./src/datamodel/VariantSpace.cpp ./src/datamodel/VariantSpace.h
 	$(CC) $(CFLAGS) -c ./src/datamodel/VariantSpace.cpp
