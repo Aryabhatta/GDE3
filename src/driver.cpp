@@ -11,29 +11,10 @@
 #include "searchalgorithms/Gde3Algorithm.h"
 using namespace std;
 
-// Map for reducing the no of evaluations
+// Map for reducing the no of evaluations, global place to store eval values
 std::map< string,vector<double> > evalVec;
-vector<Variant> recentPopulation;
-int samePopulationVector = 0;
+
 string toString( Variant & variant, vector<TuningPoint*> & TuningPointVec );
-
-
-bool checkFeasible(Variant & varEval, Gde3Algorithm & algorithm ) {
-	
-	bool vectorFeasible = true;
-	vector<TuningPoint*>::iterator iter;
-	map<TuningPoint*,int> vectormap = varEval.getValue();
-	
-	for(iter = algorithm.tuningPointVec.begin();iter != algorithm.tuningPointVec.end(); ++iter) {		
-		const TuningPointRange & tuningPointRange = (*iter)->getTpRange();		
-		if(	vectormap[*iter] < tuningPointRange.getMin() ||
-			vectormap[*iter] > tuningPointRange.getMax() ) {
-			vectorFeasible = false;
-			break;
-		}
-	}	
-	return vectorFeasible;
-}
 
 std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm) {
 	
@@ -59,99 +40,7 @@ std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm
 	return result;
 }
 
-//void evaluate(int parentIdx, int childIdx, Gde3Algorithm & algorithm) {	// This contains the actual evaluation of our population
-//	
-//	Variant & parent = algorithm.population[parentIdx];
-//	Variant & child = algorithm.population[childIdx];	
-//	
-//	// check for feasibility first, make sure it obeys all constraints
-//	if(!checkFeasible(parent,algorithm)) {		
-//		// if not feasible, drop it from population
-//		algorithm.tobeDropped.insert(parentIdx);
-//		cout << "Index: " << parentIdx << " added to TOBEDROPPED !" << endl;
-// 		return;
-//	}
-//	
-//	// check for feasibility first, make sure it obeys all constraints
-//	if(!checkFeasible(child,algorithm)) {		
-//		// if not feasible, drop it from population
-//		algorithm.tobeDropped.insert(childIdx);
-//		cout << "Index: " << childIdx << " added to TOBEDROPPED !" << endl;
-//		return;
-//	}
-//	
-//	// both are feasible, check dominant
-//	map<TuningPoint*, int> parentMap = parent.getValue();
-//	map<TuningPoint*, int> childMap = child.getValue();
-//	
-//	int xParent = parentMap[algorithm.tuningPointVec[0]];
-//	int yParent = parentMap[algorithm.tuningPointVec[1]];
-//	int xChild = childMap[algorithm.tuningPointVec[0]];
-//	int yChild = childMap[algorithm.tuningPointVec[1]];
-//	
-//	double objValuePar = 0.0;
-//	double objValueChd = 0.0;
-//	
-//	string parentStr = toString(parent,algorithm.tuningPointVec);
-//	string childStr = toString(child,algorithm.tuningPointVec);
-//	
-//	//evaluating only if necessary
-//	if(evalVec.count(parentStr) != 1 ) {
-//		objValuePar = -20 * exp(-0.2 * (sqrt(0.5 * (xParent*xParent+yParent*yParent)))) - exp(0.5 * (cos(2*M_PI*xParent) + cos(2*M_PI*yParent))) + 20 + M_E;
-//		evalVec[parentStr] = objValuePar;
-//	} else {
-//		objValuePar = evalVec[parentStr];
-//	}
-//
-//	// evaluations only when necessary
-//	if(evalVec.count(childStr) != 1) {
-//		objValueChd = -20 * exp(-0.2 * (sqrt(0.5 * (xChild*xChild+yChild*yChild)))) - exp(0.5 * (cos(2*M_PI*xChild) + cos(2*M_PI*yChild))) + 20 + M_E;
-//		evalVec[childStr] = objValueChd;
-//	} else {
-//		objValueChd = evalVec[childStr];
-//	}
-//	
-//	// TODO: specific to problem, this is a minimization problem
-//	if( objValuePar == objValueChd ) { // both are non-dominant, decide what to do 
-//		algorithm.tobeDropped.insert(childIdx); // TODO: For time being, change upon Crowding Distance
-//	} else if( objValuePar < objValueChd ) {
-//		algorithm.tobeDropped.insert(childIdx);
-//	} else {
-//		algorithm.tobeDropped.insert(parentIdx);
-//	}
-//
-//	stringstream ss1, ss2;
-//	ss1 << objValuePar; ss2 << objValueChd;
-//	algorithm.logString.append( ss1.str() + "," + ss2.str() + ",");
-//	
-//	// Minimisation problem: get the value & compare it with population optimal
-//	if(std::min(objValuePar,objValueChd) < algorithm.optimalObjVal) {
-//		algorithm.optimalObjVal = std::min(objValuePar,objValueChd);		
-//	}	
-//	return;
-//}
-
-void cleanupPopulation( Gde3Algorithm & algorithm) {
-	
-	// End of iteration, cleanup mess
-	vector<Variant> popuNextGen;
-	for(std::size_t i=0; i< algorithm.population.size(); i++) {		
-		if(algorithm.tobeDropped.count(i) != 1 ) { //not found
-			popuNextGen.push_back(algorithm.population[i]);
-		} else {
-			// found in tobeDropped, remove from evalVec
-			evalVec.erase(toString(algorithm.population[i],algorithm.tuningPointVec));
-		}
-	}
-	
-	algorithm.population.clear();
-	algorithm.population = popuNextGen;
-	algorithm.parentChildMap.clear();
-	algorithm.tobeDropped.clear();
-	algorithm.populElem.clear();
-}
-
-void evalPopulation(Gde3Algorithm & algorithm) {
+void evalPopulation(Gde3Algorithm & algorithm) { // fills the eval vector for new
 	
 	algorithm.logString.append("\n Evaluation: \n {" );
 	
@@ -176,250 +65,6 @@ void evalPopulation(Gde3Algorithm & algorithm) {
 	}
 
 	algorithm.logString.append(" }\n\n");
-}
-
-//void evaluatePopulation(Gde3Algorithm & algorithm) {
-//	algorithm.logString.append("\n Evaluation: \n {" );
-//	
-//	// evaluate all configurations in population	
-//	for(std::size_t i=0; i<algorithm.population.size(); i++)
-//	{
-//		if(algorithm.parentChildMap.count(i) > 0 ) { // parent
-//			int child = algorithm.parentChildMap[i];
-//			
-//			// send for evaluation, TODO: what in case of multiple objective values ?
-//			evaluate(i, child, algorithm);
-//		}
-//	}
-//		
-//	
-//	algorithm.logString.append(" }\n\n");
-//	
-//	cleanupPopulation(algorithm);
-//	
-//	// if the population has more elements than population size, clear depending on Crowding distance
-//	if(algorithm.population.size() > algorithm.populationSize) {
-//		bool resizingDone = false;
-//		for(std::size_t i=0; i < algorithm.population.size(); i++) {
-//			for(std::size_t j=i+1; j < algorithm.population.size(); j++) {
-//				if(std::find(algorithm.tobeDropped.begin(), algorithm.tobeDropped.end(),i) != algorithm.tobeDropped.end() &&
-//				   std::find(algorithm.tobeDropped.begin(), algorithm.tobeDropped.end(),j) != algorithm.tobeDropped.end()	) {
-//					// if both i,j are not present in tobeDroppedlist, then only evaluate
-//					evaluate(i,j, algorithm);				
-//					
-//					if(algorithm.population.size()-algorithm.tobeDropped.size()==algorithm.populationSize) {
-//						resizingDone = true;
-//						break;
-//					}						
-//				}
-//			}
-//			if(resizingDone) {
-//				break;
-//			}
-//		}
-//		
-//		if(!resizingDone) { // all non-dominant vector, need to clean by crowding distance
-//			// Logic for crowding distance
-//		}
-//		
-//		// clear elements from population vector
-//		cleanupPopulation(algorithm);
-//	}
-//	
-//	// Refill the unique set again, so that there are no repetition of configurations	
-//	for( vector<Variant>::iterator iter = algorithm.population.begin(); iter != algorithm.population.end(); ++iter) {		
-//		map<TuningPoint*,int> vectorMap = (*iter).getValue();
-//		string uniqueElem = toString(*iter,algorithm.tuningPointVec);
-//		algorithm.populElem.insert(uniqueElem);
-//	}
-//	
-//	// Priting evaluation of this generation, later this code can be removed
-//	algorithm.logString.append("Objective values after generation:\n {" );
-//	for(vector<Variant>::iterator iter= algorithm.population.begin();iter!= algorithm.population.end(); ++iter) {
-//		
-//		vector<double> objVal = evalObjFunction(*iter, algorithm);
-//		
-//		algorithm.logString.append("(");
-//		for(size_t i=0; i<objVal.size(); i++) {
-//			stringstream ss1;
-//			ss1 << objVal[i];
-//			algorithm.logString.append( ss1.str() + ",");
-//		}
-//		algorithm.logString.append(")");
-//	}
-//	
-//	algorithm.logString.append("}\n");
-//}
-
-int compareVariants(Variant & parent, Variant & child, Gde3Algorithm & algorithm) {
-	int result;
-	
-	vector<double> parentMap = evalVec[toString(parent,algorithm.tuningPointVec)];
-	vector<double> childMap = evalVec[toString(child,algorithm.tuningPointVec)];
-	
-	if(parentMap.size() != childMap.size()) {
-		cout << "Fatal Erorr !" << endl;
-		return -100;
-	}
-	
-	// check for feasibility first, make sure it obeys all constraints
-	if(!checkFeasible(parent,algorithm)) {		
-		// if not feasible, drop it from population
-		return 1;
-	}
-	
-	// check for feasibility first, make sure it obeys all constraints
-	if(!checkFeasible(child,algorithm)) {		
-		// if not feasible, drop it from population
-		return -1;
-	}
-
-	
-	// compare for Parent dominance
-	bool parentDom = true;
-	for(int i=0; i<parentMap.size(); i++) {
-		if(parentMap[i] > childMap[i]) { // Minimization problem
-			parentDom = false;
-			break;
-		}
-	}
-	
-	if(parentDom) {
-		return -1;
-	}
-	
-	// compare for child dominance
-	bool childDom = true;
-	for(int i=0; i<parentMap.size(); i++) {
-		if(parentMap[i] < childMap[i]) { // Minimization problem
-			childDom = false;
-			break;
-		}
-	}
-	
-	if(childDom) {
-		return 1;
-	}
-	
-	return 0; // non dominance of both	
-}
-
-void checkSearchFinished( Gde3Algorithm & algorithm ) {
-	 	
-	// evaluate all configurations in population	
-	for(std::size_t i=0; i<algorithm.population.size(); i++)
-	{	
-		if(algorithm.parentChildMap.count(i) > 0 ) { // parent
-			int parent = i;
-			int child = algorithm.parentChildMap[i];
-			
-			// send for evaluation
-			int resultComp = compareVariants(algorithm.population[parent], algorithm.population[child], algorithm);
-			
-			if( resultComp == 0) { // both dominant
-				algorithm.tobeDropped.insert(child);
-			} else if(resultComp < 0) { //Parent Dominant
-				algorithm.tobeDropped.insert(child);
-			} else if( resultComp > 0) { // Child Dominant
-				algorithm.tobeDropped.insert(parent);
-			}				
-		}
-	}
-	
-	cleanupPopulation(algorithm);
-	
-	// if the population has more elements than population size, clear depending on Crowding distance
-	if(algorithm.population.size() > algorithm.populationSize) {
-		bool resizingDone = false;
-		for(std::size_t i=0; i < algorithm.population.size(); i++) {
-			for(std::size_t j=i+1; j < algorithm.population.size(); j++) {
-				
-				// send for evaluation
-				int resultComp = compareVariants(algorithm.population[i], algorithm.population[j],algorithm);
-				
-				if( resultComp == 0) { // both dominant
-					// do nothing, cannot lose dominant vectors
-				} else if(resultComp < 0) { //Parent Dominant
-					algorithm.tobeDropped.insert(j);
-				} else if( resultComp > 0) { // Child Dominant
-					algorithm.tobeDropped.insert(i);
-				}				
-				
-				if(algorithm.population.size()-algorithm.tobeDropped.size() == algorithm.populationSize) {
-					resizingDone = true;
-					break;
-				}											
-			}				
-			if(resizingDone) {
-				break;
-			}
-		}
-		
-		if(!resizingDone) { // all non-dominant vector, need to clean by crowding distance
-							// Logic for crowding distance
-		}
-		
-		// clear elements from population vector
-		cleanupPopulation(algorithm);
-	}
-	
-	// Refill the unique set again, so that there are no repetition of configurations	
-	for( vector<Variant>::iterator iter = algorithm.population.begin(); iter != algorithm.population.end(); ++iter) {		
-		map<TuningPoint*,int> vectorMap = (*iter).getValue();
-		string uniqueElem = toString(*iter,algorithm.tuningPointVec);
-		algorithm.populElem.insert(uniqueElem);
-	}
-	
-	// Priting evaluation of this generation, later this code can be removed
-	algorithm.logString.append("Objective values after generation:\n {" );
-	for(vector<Variant>::iterator iter= algorithm.population.begin();iter!= algorithm.population.end(); ++iter) {
-		
-		vector<double> objVal = evalObjFunction(*iter, algorithm);
-		
-		algorithm.logString.append("(");
-		for(size_t i=0; i<objVal.size(); i++) {
-			stringstream ss1;
-			ss1 << objVal[i];
-			algorithm.logString.append( ss1.str() + ",");
-		}
-		algorithm.logString.append(")");
-	}
-	
-	algorithm.logString.append("}\n");
-
-	
-	if(recentPopulation.empty()) { // first time
-		vector<Variant>::iterator iter;
-		for(iter=algorithm.population.begin(); iter != algorithm.population.end(); ++iter) {
-			recentPopulation.push_back(*iter);
-		}			
-	}
-	
-	bool generationEqual = true;
-	
-	// compare two population vectors
-	if(algorithm.population.size() == recentPopulation.size()) {
-		for(std::size_t i=0; i< recentPopulation.size(); i++) {
-			if( toString(algorithm.population[i],algorithm.tuningPointVec) != toString(recentPopulation[i],algorithm.tuningPointVec) ){
-				generationEqual = false;
-				break;
-			}
-		}
-		
-		if(generationEqual) {
-			samePopulationVector++;
-		}
-	}
-	
-	// replace replacePopulation by newest one
-	recentPopulation.clear();
-	vector<Variant>::iterator iter;
-	for(iter=algorithm.population.begin(); iter != algorithm.population.end(); ++iter) {
-		recentPopulation.push_back(*iter);
-	}					
-	if(samePopulationVector == 3) {
-		algorithm.setSearchFinished(true);		
-	}
 }
 
 TuningPoint * createTuningPoint(long id, string tuningActionName, tunableType parameterType, int minRange,
@@ -461,6 +106,9 @@ int main(int argc, char * argv[]) {
 	
 	Gde3Algorithm algorithm;
 
+	// Creating new searchSpace 
+	SearchSpace * searchSpace = new SearchSpace();
+	
 	// Creating variantspace
 	VariantSpace * varSpace = new VariantSpace();
 		
@@ -478,8 +126,10 @@ int main(int argc, char * argv[]) {
 	space[tuningPointTwo] = tuningPointTwoConstraint;
 	algorithm.tuningPointVec.push_back(tuningPointTwo);
 	
-	varSpace->setSpace(space);		
-	algorithm.addSearchSpace( varSpace );
+	varSpace->setSpace(space);
+	searchSpace->setVariantSpace(varSpace);
+	
+	algorithm.addSearchSpace(searchSpace);
 	
 	int iGen = 0;
 	
@@ -489,7 +139,7 @@ int main(int argc, char * argv[]) {
 		
 		evalPopulation(algorithm); // Will be replaced by evaluate in Periscope
 		
-		checkSearchFinished(algorithm);
+		algorithm.checkSearchFinished( evalVec );
 		
 		if(algorithm.isSearchFinished()) {
 			break;
