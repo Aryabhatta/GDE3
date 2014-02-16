@@ -17,30 +17,31 @@ Gde3Algorithm::~Gde3Algorithm() {
 	// destroy all dynamically allocated memory
 	delete searchSpace;
 	
-	vector<TuningPoint*>::iterator iter;
+	vector<TuningParameter*>::iterator iter;
 	for( iter = tuningPointVec.begin(); iter != tuningPointVec.end(); ++iter) {
 		delete *iter;
 	}
 }
 
-TuningPoint * Gde3Algorithm::createTuningPoint(long id, string tuningActionName, tunableType parameterType, int minRange,
+TuningParameter * Gde3Algorithm::createTuningPoint(long id, string tuningActionName, tPlugin pluginType, int minRange,
 			  					int maxRange) {
 	// Adding first parameter
-	TuningPoint * tuningPointNew = new TuningPoint();
+	TuningParameter * tuningPointNew = new TuningParameter();
 	tuningPointNew->setId(id);
-	tuningPointNew->setTuningActionName(tuningActionName);
-	tuningPointNew->setParameterType(parameterType);
+	tuningPointNew->setName(tuningActionName);
+	tuningPointNew->setPluginType(pluginType);
 	
-	TuningPointRange tuningPointNewRange(minRange,maxRange); 
-	tuningPointNew->setTpRange(tuningPointNewRange);
+//	TuningPointRange tuningPointNewRange(minRange,maxRange); 
+//	tuningPointNew->setTpRange(tuningPointNewRange);
+	tuningPointNew->setRange(minRange,maxRange,1);
 	
 	// TODO: Currently, not specified anything as restriction, to change
 	Restriction restriction;
-	tuningPointNew->setRestriction(restriction);
+	tuningPointNew->setRestriction(&restriction);
 	
 	if(true) {
 	cout << "Tuning plugin create with id: " << id << " Name: " << tuningActionName << " Parameter type: "; 
-	cout << parameterType << " TuningPointRange: " << minRange << " to " << maxRange << endl;
+	cout << pluginType << " TuningPointRange: " << minRange << " to " << maxRange << endl;
 	}
 	
 	return tuningPointNew;
@@ -53,8 +54,8 @@ void Gde3Algorithm::addSearchSpace( SearchSpace * space ) {
 	this->searchSpace = space;
 }
 
-string toString( Variant & variant, vector<TuningPoint*> & TuningPointVec ) {
-	map<TuningPoint*, int > vectorMap = variant.getValue();	
+string toString( Variant & variant, vector<TuningParameter*> & TuningPointVec ) {
+	map<TuningParameter*, int > vectorMap = variant.getValue();	
 	string newString;
 	
 	for(size_t i=0; i< TuningPointVec.size(); i++) {
@@ -91,7 +92,7 @@ void Gde3Algorithm::createScenarios() {
 			}
 			
 			Variant newVariant;
-			map<TuningPoint*,int> newMap;			
+			map<TuningParameter*,int> newMap;			
 
 			// Since we know we have two TP, can replace by vector iterator
 			for(std::size_t i=0; i<tuningPointVec.size(); i++ ) {
@@ -120,10 +121,10 @@ void Gde3Algorithm::createScenarios() {
 	{
 		// For every member of population
 		Variant newChildVariant;
-		map<TuningPoint*,int> newChildMap;
+		map<TuningParameter*,int> newChildMap;
 		
 		// Choose parent
-		map<TuningPoint*,int> parentMap = population[idx].getValue();
+		map<TuningParameter*,int> parentMap = population[idx].getValue();
 		
 		// Choose 3 random members from population
 		int random[3] = {-1,-1,-1};
@@ -148,9 +149,9 @@ void Gde3Algorithm::createScenarios() {
 //		map<TuningPoint*,int> rTwoMap = population[*iter++].getValue();
 //		map<TuningPoint*,int> rThreeMap = population[*iter].getValue();
 
-		map<TuningPoint*,int> rOneMap = population[random[0]].getValue();
-		map<TuningPoint*,int> rTwoMap = population[random[1]].getValue();
-		map<TuningPoint*,int> rThreeMap = population[random[2]].getValue();
+		map<TuningParameter*,int> rOneMap = population[random[0]].getValue();
+		map<TuningParameter*,int> rTwoMap = population[random[1]].getValue();
+		map<TuningParameter*,int> rThreeMap = population[random[2]].getValue();
 
 		size_t randIndex = floor(rand()%tuningPointVec.size()) + 1;
 		
@@ -213,13 +214,13 @@ void Gde3Algorithm::setSearchFinished( bool searchFinished ) {
 bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 	
 	bool vectorFeasible = true;
-	vector<TuningPoint*>::iterator iter;
-	map<TuningPoint*,int> vectormap = varEval.getValue();
+	vector<TuningParameter*>::iterator iter;
+	map<TuningParameter*,int> vectormap = varEval.getValue();
 	
 	for(iter = tuningPointVec.begin();iter != tuningPointVec.end(); ++iter) {		
-		const TuningPointRange & tuningPointRange = (*iter)->getTpRange();		
-		if(	vectormap[*iter] < tuningPointRange.getMin() ||
-			vectormap[*iter] > tuningPointRange.getMax() ) {
+//		const TuningPointRange & tuningPointRange = (*iter)->getTpRange();		
+		if(	vectormap[*iter] < (*iter)->getRangeFrom()/*tuningPointRange.getMin()*/ ||
+			vectormap[*iter] > (*iter)->getRangeTo()/*tuningPointRange.getMax()*/ ) {
 			vectorFeasible = false;
 			break;
 		}
@@ -341,7 +342,7 @@ void Gde3Algorithm::checkSearchFinished( map< string,vector<double> > & evalVec 
 	
 	// Refill the unique set again, so that there are no repetition of configurations	
 	for( vector<Variant>::iterator iter = population.begin(); iter != population.end(); ++iter) {		
-		map<TuningPoint*,int> vectorMap = (*iter).getValue();
+		map<TuningParameter*,int> vectorMap = (*iter).getValue();
 		string uniqueElem = toString(*iter,tuningPointVec);
 		populElem.insert(uniqueElem);
 	}

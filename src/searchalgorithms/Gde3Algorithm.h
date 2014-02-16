@@ -26,7 +26,7 @@ public:
 //	VariantSpace* variantSpace;
 	SearchSpace * searchSpace;
 	
-	vector<TuningPoint*> tuningPointVec; // additional data structure to maintain Tuning point ptrs
+	vector<TuningParameter*> tuningPointVec; // additional data structure to maintain Tuning point ptrs
 	bool searchFinishedVar;
 	
 	std::size_t populationSize;
@@ -66,7 +66,7 @@ public:
 	void setSearchFinished(bool searchFinished);
 	void checkSearchFinished( map< string,vector<double> > & evalVec);
 				
-	TuningPoint * createTuningPoint(long id, string tuningActionName, tunableType parameterType, int minRange,
+	TuningParameter * createTuningPoint(long id, string tuningActionName, tPlugin parameterType, int minRange,
 					  					int maxRange);
 	
 	bool checkFeasible(Variant & varEval);

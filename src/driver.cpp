@@ -14,14 +14,14 @@ using namespace std;
 // Map for reducing the no of evaluations, global place to store eval values
 std::map< string,vector<double> > evalVec;
 
-string toString( Variant & variant, vector<TuningPoint*> & TuningPointVec );
+string toString( Variant & variant, vector<TuningParameter*> & TuningPointVec );
 
 std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm) {
 	
 	vector<double> result;
 	
 	// List all Tuning Parameters
-	map<TuningPoint*,int> vectormap = variant.getValue();
+	map<TuningParameter*,int> vectormap = variant.getValue();
 	vector<int> tuningParam;
 	
 	for(std::size_t i=0; i < algorithm.tuningPointVec.size(); i++) {
@@ -51,7 +51,7 @@ void evalPopulation(Gde3Algorithm & algorithm) { // fills the eval vector for ne
 			evalVec[toString(algorithm.population[i], algorithm.tuningPointVec)] = objVal;
 			
 			algorithm.logString.append("(");
-			for(int k=0; k<objVal.size(); k++) {
+			for(size_t k=0; k<objVal.size(); k++) {
 				stringstream ss;
 				ss << objVal[k];
 				algorithm.logString.append(ss.str());
@@ -67,23 +67,22 @@ void evalPopulation(Gde3Algorithm & algorithm) { // fills the eval vector for ne
 	algorithm.logString.append(" }\n\n");
 }
 
-TuningPoint * createTuningPoint(long id, string tuningActionName, tunableType parameterType, int minRange,
+TuningParameter * createTuningPoint(long id, string tuningActionName, tPlugin pluginType, int minRange,
 			  					int maxRange, Gde3Algorithm & algorithm) {
 	// Adding first parameter
-	TuningPoint * tuningPointNew = new TuningPoint();
+	TuningParameter * tuningPointNew = new TuningParameter();
 	tuningPointNew->setId(id);
-	tuningPointNew->setTuningActionName(tuningActionName);
-	tuningPointNew->setParameterType(parameterType);
+	tuningPointNew->setName(tuningActionName);
+	tuningPointNew->setPluginType(pluginType);
 	
-	TuningPointRange tuningPointNewRange(minRange,maxRange); 
-	tuningPointNew->setTpRange(tuningPointNewRange);
+	tuningPointNew->setRange(minRange,maxRange,1);
 	
 	Restriction restriction;
-	tuningPointNew->setRestriction(restriction);
+	tuningPointNew->setRestriction(&restriction);
 	
 	stringstream ssTest;
 	ssTest << "Tuning plugin create with id: " << id << " Name: " << tuningActionName << " Parameter type: " 
-	<< parameterType << " TuningPointRange: " << minRange << " to " << maxRange << "\n";
+	<< pluginType << " TuningPointRange: " << minRange << " to " << maxRange << "\n";
 	algorithm.logString.append(ssTest.str());
 	
 	return tuningPointNew;
@@ -112,21 +111,16 @@ int main(int argc, char * argv[]) {
 	// Creating variantspace
 	VariantSpace * varSpace = new VariantSpace();
 		
-	map<TuningPoint*, TuningPointConstraint> space;
-	
 	// Adding first parameters to the map
-	TuningPoint * tuningPointOne = createTuningPoint(100, "X value", CODE_REGION, -5, 5, algorithm);
-	TuningPointConstraint tuningPointOneConstraint;		
-	space[tuningPointOne] = tuningPointOneConstraint;
+	TuningParameter * tuningPointOne = createTuningPoint(100, "X value", UNKOWN_PLUGIN, -5, 5, algorithm);
+	varSpace->addTuningParameter(tuningPointOne);
 	algorithm.tuningPointVec.push_back(tuningPointOne);	
 	
 	// Adding second parameter
-	TuningPoint * tuningPointTwo = createTuningPoint(200, "Y value", CODE_REGION, -5, 5, algorithm);
-	TuningPointConstraint tuningPointTwoConstraint;	
-	space[tuningPointTwo] = tuningPointTwoConstraint;
+	TuningParameter * tuningPointTwo = createTuningPoint(200, "Y value", UNKOWN_PLUGIN, -5, 5, algorithm);
+	varSpace->addTuningParameter(tuningPointTwo);
 	algorithm.tuningPointVec.push_back(tuningPointTwo);
 	
-	varSpace->setSpace(space);
 	searchSpace->setVariantSpace(varSpace);
 	
 	algorithm.addSearchSpace(searchSpace);
