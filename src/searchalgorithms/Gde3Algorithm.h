@@ -23,11 +23,9 @@ class Gde3Algorithm: public ISearchAlgorithm
 	double F,CR;
 	
 public:
-//	VariantSpace* variantSpace;
 	SearchSpace * searchSpace;
 	
 	vector<TuningParameter*> tuningPointVec; // additional data structure to maintain Tuning point ptrs
-	bool searchFinishedVar;
 	
 	std::size_t populationSize;
 	vector<Variant> population;	// instead of scenario's here handled as population
@@ -40,32 +38,28 @@ public:
 	set<int> tobeDropped;
 	
 	string logString; // keeps track of all activities, helps to debug
-		
-	int samePopulationVector = 0;
+	
+	int samePopulationVector;
 	
 public:
 	Gde3Algorithm();
 	virtual ~Gde3Algorithm();
 	
-	// TODO compare with new ISearchAlgorithm interface and remove functions not necessary
 	
 	// Inhertied and not used
 	void initialize(void) {}
 	void clear(void) {}
-	map<int, double> getSearchPath(void) {}
-	bool searchFinished(void) { return false;}
+	map<int, double> getSearchPath(void) {}	
 	void terminate(void) {}
 	void finalize(void) {}
+	bool searchFinished(void) {return false;}
 	
 	void addSearchSpace(SearchSpace*);
 	void createScenarios();
 	int getOptimum();	
 	
-	// TODO Only one search finished method stays as per ISearchAlgorithm
-	bool isSearchFinished() const;
-	void setSearchFinished(bool searchFinished);
-	void checkSearchFinished( map< string,vector<double> > & evalVec);
-				
+	bool searchFinished(map< string,vector<double> > & evalVec);// { return false;}
+	
 	TuningParameter * createTuningPoint(long id, string tuningActionName, tPlugin parameterType, int minRange,
 					  					int maxRange);
 	

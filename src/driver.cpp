@@ -133,11 +133,9 @@ int main(int argc, char * argv[]) {
 		
 		evalPopulation(algorithm); // Will be replaced by evaluate in Periscope
 		
-		algorithm.checkSearchFinished( evalVec );
-		
-		if(algorithm.isSearchFinished()) {
+		if(algorithm.searchFinished( evalVec )) {
 			break;
-		}				
+		}
 	}
 	
 	algorithm.getOptimum();

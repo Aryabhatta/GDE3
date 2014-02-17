@@ -7,7 +7,7 @@ Gde3Algorithm::Gde3Algorithm(){
 	
 	// Set initial population size
 	populationSize = 10;	
-	searchFinishedVar = false;
+	samePopulationVector = 0;
 	
 	CR = 0.5;
 	F = 0.5;
@@ -21,30 +21,6 @@ Gde3Algorithm::~Gde3Algorithm() {
 	for( iter = tuningPointVec.begin(); iter != tuningPointVec.end(); ++iter) {
 		delete *iter;
 	}
-}
-
-TuningParameter * Gde3Algorithm::createTuningPoint(long id, string tuningActionName, tPlugin pluginType, int minRange,
-			  					int maxRange) {
-	// Adding first parameter
-	TuningParameter * tuningPointNew = new TuningParameter();
-	tuningPointNew->setId(id);
-	tuningPointNew->setName(tuningActionName);
-	tuningPointNew->setPluginType(pluginType);
-	
-//	TuningPointRange tuningPointNewRange(minRange,maxRange); 
-//	tuningPointNew->setTpRange(tuningPointNewRange);
-	tuningPointNew->setRange(minRange,maxRange,1);
-	
-	// TODO: Currently, not specified anything as restriction, to change
-	Restriction restriction;
-	tuningPointNew->setRestriction(&restriction);
-	
-	if(true) {
-	cout << "Tuning plugin create with id: " << id << " Name: " << tuningActionName << " Parameter type: "; 
-	cout << pluginType << " TuningPointRange: " << minRange << " to " << maxRange << endl;
-	}
-	
-	return tuningPointNew;
 }
 
 /***************************************************************************
@@ -171,8 +147,6 @@ void Gde3Algorithm::createScenarios() {
 		// Need to make sure there are no repetitions in the population
 		string uniqueConfig = toString(newChildVariant,tuningPointVec);
 		if(populElem.count(uniqueConfig) == 1) { // config already present, redo
-//			cout << "Found... COntinue Idx:" << idx << endl;
-//			cout << "------------------------ After idx --" << endl;
 			continue;
 		}
 		idx++;		
@@ -193,9 +167,9 @@ void Gde3Algorithm::createScenarios() {
  * Evaluate if the population from last 3 iterations are same OR
  * maximum no of iterations reached
  */
-bool Gde3Algorithm::isSearchFinished() const {
-	return searchFinishedVar;
-}
+//bool Gde3Algorithm::isSearchFinished() const {
+//	return searchFinishedVar;
+//}
 
 
 int Gde3Algorithm::getOptimum() {
@@ -207,10 +181,6 @@ int Gde3Algorithm::getOptimum() {
 	return 0;
 }
 
-void Gde3Algorithm::setSearchFinished( bool searchFinished ) {
-	this->searchFinishedVar = searchFinished;
-}
-
 bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 	
 	bool vectorFeasible = true;
@@ -218,9 +188,8 @@ bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 	map<TuningParameter*,int> vectormap = varEval.getValue();
 	
 	for(iter = tuningPointVec.begin();iter != tuningPointVec.end(); ++iter) {		
-//		const TuningPointRange & tuningPointRange = (*iter)->getTpRange();		
-		if(	vectormap[*iter] < (*iter)->getRangeFrom()/*tuningPointRange.getMin()*/ ||
-			vectormap[*iter] > (*iter)->getRangeTo()/*tuningPointRange.getMax()*/ ) {
+		if(	vectormap[*iter] < (*iter)->getRangeFrom() ||
+			vectormap[*iter] > (*iter)->getRangeTo() ) {
 			vectorFeasible = false;
 			break;
 		}
@@ -229,8 +198,7 @@ bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 }
 
 int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string,vector<double> > & evalVec) {
-	int result;
-	
+		
 	vector<double> parentMap = evalVec[toString(parent,tuningPointVec)];
 	vector<double> childMap = evalVec[toString(child,tuningPointVec)];
 	
@@ -254,7 +222,7 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 	
 	// compare for Parent dominance
 	bool parentDom = true;
-	for(int i=0; i<parentMap.size(); i++) {
+	for(size_t i=0; i<parentMap.size(); i++) {
 		if(parentMap[i] > childMap[i]) { // Minimization problem
 			parentDom = false;
 			break;
@@ -267,7 +235,7 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 	
 	// compare for child dominance
 	bool childDom = true;
-	for(int i=0; i<parentMap.size(); i++) {
+	for(size_t i=0; i<parentMap.size(); i++) {
 		if(parentMap[i] < childMap[i]) { // Minimization problem
 			childDom = false;
 			break;
@@ -281,8 +249,10 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 	return 0; // non dominance of both	
 }
 
-void Gde3Algorithm::checkSearchFinished( map< string,vector<double> > & evalVec ) {
-		 	
+bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
+	
+	bool searchFinish = false;
+	
 	// evaluate all configurations in population	
 	for(std::size_t i=0; i<population.size(); i++)
 	{	
@@ -351,7 +321,6 @@ void Gde3Algorithm::checkSearchFinished( map< string,vector<double> > & evalVec 
 	logString.append("Objective values after generation:\n {" );
 	for(vector<Variant>::iterator iter= population.begin();iter!= population.end(); ++iter) {
 		
-//		vector<double> objVal = evalObjFunction(*iter, algorithm);
 		vector<double> objVal = evalVec[toString(*iter,tuningPointVec)];
 		
 		logString.append("(");
@@ -396,8 +365,9 @@ void Gde3Algorithm::checkSearchFinished( map< string,vector<double> > & evalVec 
 		recentPopulation.push_back(*iter);
 	}					
 	if(samePopulationVector == 3) {
-		setSearchFinished(true);		
+		searchFinish = true;
 	}	
+	return searchFinish;
 }
 
 void Gde3Algorithm::cleanupPopulation(map< string,vector<double> > & evalVec) {
