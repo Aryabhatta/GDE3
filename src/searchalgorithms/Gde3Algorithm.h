@@ -24,15 +24,14 @@ class Gde3Algorithm: public ISearchAlgorithm
 	
 public:
 	SearchSpace * searchSpace;
-	
-	vector<TuningParameter*> tuningPointVec; // additional data structure to maintain Tuning point ptrs
-	
+
 	std::size_t populationSize;
-	vector<Variant> population;	// instead of scenario's here handled as population
-	vector<Variant> recentPopulation; // keeps track of last population
-	set<std::string> populElem;	
+	vector<Variant> population;			// instead of scenario's here handled as population
+	vector<Variant> recentPopulation; 	// keeps track of last population
+	set<std::string> populElem;			// makes sure the variants are unique
 			
 	double optimalObjVal; 				 // can be replaced by vector for MO functions
+	string optimalVariant;
 	
 	map<int,int> parentChildMap;
 	set<int> tobeDropped;

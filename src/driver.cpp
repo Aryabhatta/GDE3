@@ -14,7 +14,8 @@ using namespace std;
 // Map for reducing the no of evaluations, global place to store eval values
 std::map< string,vector<double> > evalVec;
 
-string toString( Variant & variant, vector<TuningParameter*> & TuningPointVec );
+//string toString( Variant & variant, vector<TuningParameter*> & TuningPointVec );
+string toString( Variant & variant, vector<TuningParameter*> & tuningParVec );
 
 std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm) {
 	
@@ -23,9 +24,10 @@ std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm
 	// List all Tuning Parameters
 	map<TuningParameter*,int> vectormap = variant.getValue();
 	vector<int> tuningParam;
+	vector<TuningParameter*> tuningParVec = algorithm.searchSpace->getVariantSpace()->getTuningParameters();
 	
-	for(std::size_t i=0; i < algorithm.tuningPointVec.size(); i++) {
-		int value = vectormap[algorithm.tuningPointVec[i]];
+	for(std::size_t i=0; i < tuningParVec.size(); i++) {
+		int value = vectormap[tuningParVec[i]];
 		tuningParam.push_back(value);
 	}
 	
@@ -42,29 +44,34 @@ std::vector<double> evalObjFunction(Variant & variant, Gde3Algorithm & algorithm
 
 void evalPopulation(Gde3Algorithm & algorithm) { // fills the eval vector for new
 	
-	algorithm.logString.append("\n Evaluation: \n {" );
+	algorithm.logString.append("\nEvaluation: \n {" );
+	vector<TuningParameter*> tuningParVec = algorithm.searchSpace->getVariantSpace()->getTuningParameters();
 	
 	// Imitating Periscope Evaluation
 	for(std::size_t i=0; i<algorithm.population.size(); i++) {
-		if(evalVec.count(toString(algorithm.population[i], algorithm.tuningPointVec)) != 1) {
+		if(evalVec.count(toString(algorithm.population[i], tuningParVec)) != 1) {
 			vector<double> objVal =	evalObjFunction(algorithm.population[i], algorithm);
-			evalVec[toString(algorithm.population[i], algorithm.tuningPointVec)] = objVal;
+			evalVec[toString(algorithm.population[i], tuningParVec)] = objVal;
 			
 			algorithm.logString.append("(");
 			for(size_t k=0; k<objVal.size(); k++) {
+				
 				stringstream ss;
 				ss << objVal[k];
 				algorithm.logString.append(ss.str());
 				algorithm.logString.append(",");
 				
-				algorithm.optimalObjVal = std::min(objVal[k],algorithm.optimalObjVal);		
-				
+				if(objVal[k] < algorithm.optimalObjVal) { // cannot work for MO function
+					algorithm.optimalObjVal = objVal[k];
+					algorithm.optimalVariant = toString(algorithm.population[i], tuningParVec);
+				}
+//				algorithm.optimalObjVal = std::min(objVal[k],algorithm.optimalObjVal);					
 			}
 			algorithm.logString.append(") ");
 		}
 	}
 
-	algorithm.logString.append(" }\n\n");
+	algorithm.logString.append(" }\n");
 }
 
 TuningParameter * createTuningPoint(long id, string tuningActionName, tPlugin pluginType, int minRange,
@@ -114,12 +121,10 @@ int main(int argc, char * argv[]) {
 	// Adding first parameters to the map
 	TuningParameter * tuningPointOne = createTuningPoint(100, "X value", UNKOWN_PLUGIN, -5, 5, algorithm);
 	varSpace->addTuningParameter(tuningPointOne);
-	algorithm.tuningPointVec.push_back(tuningPointOne);	
 	
 	// Adding second parameter
 	TuningParameter * tuningPointTwo = createTuningPoint(200, "Y value", UNKOWN_PLUGIN, -5, 5, algorithm);
 	varSpace->addTuningParameter(tuningPointTwo);
-	algorithm.tuningPointVec.push_back(tuningPointTwo);
 	
 	searchSpace->setVariantSpace(varSpace);
 	

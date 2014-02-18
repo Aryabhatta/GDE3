@@ -18,9 +18,6 @@ Gde3Algorithm::~Gde3Algorithm() {
 	delete searchSpace;
 	
 	vector<TuningParameter*>::iterator iter;
-	for( iter = tuningPointVec.begin(); iter != tuningPointVec.end(); ++iter) {
-		delete *iter;
-	}
 }
 
 /***************************************************************************
@@ -30,13 +27,13 @@ void Gde3Algorithm::addSearchSpace( SearchSpace * space ) {
 	this->searchSpace = space;
 }
 
-string toString( Variant & variant, vector<TuningParameter*> & TuningPointVec ) {
+string toString( Variant & variant, vector<TuningParameter*> & tuningParVec ) {
 	map<TuningParameter*, int > vectorMap = variant.getValue();	
 	string newString;
 	
-	for(size_t i=0; i< TuningPointVec.size(); i++) {
+	for(size_t i=0; i< tuningParVec.size(); i++) {
 		stringstream newS;
-		newS << vectorMap[TuningPointVec[i]];
+		newS << vectorMap[tuningParVec[i]];
 		newString.append(newS.str());
 		newString.append(",");		
 	}
@@ -56,43 +53,42 @@ void Gde3Algorithm::createScenarios() {
 	// initialize random seed
 	srand(time(NULL));
 	int membertoCreate = populationSize;
+	
+	vector<TuningParameter*> tuningParVec = this->searchSpace->getVariantSpace()->getTuningParameters(); 
 			
 	if(population.empty()) { // first time in create Scenarios		
 		while(membertoCreate) {
 			
-			vector<int> tuningParameter;
-			
-			for(std::size_t i=0; i<tuningPointVec.size(); i++ ) {
-				int value = rand()%populationSize + (-5);
-				tuningParameter.push_back(value);
-			}
-			
 			Variant newVariant;
-			map<TuningParameter*,int> newMap;			
-
-			// Since we know we have two TP, can replace by vector iterator
-			for(std::size_t i=0; i<tuningPointVec.size(); i++ ) {
-				newMap[tuningPointVec[i]] = tuningParameter[i];
+			map<TuningParameter*,int> newMap;
+			
+			for(std::size_t i=0; i<tuningParVec.size(); i++ ) {
+				int value = rand()%populationSize + tuningParVec[i]->getRangeFrom();
+				
+				// TODO: The value must round off to nearest tuningParVec[i]->getRangeStep() 
+				// if all values are going to be integers, then no need !
+				
+				newMap[tuningParVec[i]] = value;
 			}
 			
 			newVariant.setValue(newMap);
 
-			string uniqueConfig = toString(newVariant, tuningPointVec);
+			string uniqueConfig = toString(newVariant, tuningParVec);
 			
 			if(populElem.count(uniqueConfig) == 1) { //Already in population
 				continue;
 			} 
 			
 			populElem.insert(uniqueConfig);
-			population.push_back(newVariant);
+			population.push_back(newVariant); // TODO: replace by adding to scenario pool
 			membertoCreate--;
 		}			
 	}
 	
 	// Generate new population according to GDE3 population generation, even works for first random iteration
-	// TODO: current problem is Variant can store only integer values, can be problematic afterwards
 	int popSize = population.size();	
 	int idx = 0;
+	
 	while(idx < popSize)
 	{
 		// For every member of population
@@ -107,76 +103,54 @@ void Gde3Algorithm::createScenarios() {
 		int i=0;
 		while( i < 3) {
 			int newEntry = rand() % population.size();
-			if(newEntry != random[((i+1)%3)] && newEntry != random[((i-1)%3)]) {
+			if(newEntry != random[((i+1)%3)] && newEntry != random[((i-1)%3)]) { // ensuring no repeat
 				random[i++] = newEntry;
 			}
 		}
 		
-//		set<int> randMem;
-//		while(randMem.size()!= 3) {
-//			int newEntry = rand() % population.size();
-//			if( randMem.count(newEntry) != 1 && newEntry != idx) {
-//				randMem.insert(newEntry);
-//			}
-//		}		
-//		set<int>::iterator iter = randMem.begin();		
-		// Get the maps for all these randomly chosen members
-//		map<TuningPoint*,int> rOneMap = population[*iter++].getValue();
-//		map<TuningPoint*,int> rTwoMap = population[*iter++].getValue();
-//		map<TuningPoint*,int> rThreeMap = population[*iter].getValue();
-
 		map<TuningParameter*,int> rOneMap = population[random[0]].getValue();
 		map<TuningParameter*,int> rTwoMap = population[random[1]].getValue();
 		map<TuningParameter*,int> rThreeMap = population[random[2]].getValue();
 
-		size_t randIndex = floor(rand()%tuningPointVec.size()) + 1;
+		size_t randIndex = floor(rand()%tuningParVec.size()) + 1;
 		
 		// iterate over all TP of variant
-		for(std::size_t j=0; j<tuningPointVec.size(); j++) {
+		for(std::size_t j=0; j<tuningParVec.size(); j++) {
 			if( rand() < CR || j == randIndex ) {
-				newChildMap[tuningPointVec[j]] = rThreeMap[tuningPointVec[j]] + F*(rOneMap[tuningPointVec[j]] - rTwoMap[tuningPointVec[j]]);
+				newChildMap[tuningParVec[j]] = rThreeMap[tuningParVec[j]] + F*(rOneMap[tuningParVec[j]] - rTwoMap[tuningParVec[j]]);
 			}
 			else {
-				newChildMap[tuningPointVec[j]] = parentMap[tuningPointVec[j]];
+				newChildMap[tuningParVec[j]] = parentMap[tuningParVec[j]];
 			}				
 		}
 		
-		// Add random configuration to the pool
 		newChildVariant.setValue(newChildMap);
 		
 		// Need to make sure there are no repetitions in the population
-		string uniqueConfig = toString(newChildVariant,tuningPointVec);
+		string uniqueConfig = toString(newChildVariant,tuningParVec);
 		if(populElem.count(uniqueConfig) == 1) { // config already present, redo
 			continue;
 		}
+		
 		idx++;		
 		populElem.insert(uniqueConfig);
-		population.push_back(newChildVariant);
+		population.push_back(newChildVariant);// TODO:replace by adding to scenario pool
 
-		logString.append("(" + toString(population[idx-1],tuningPointVec) + "),");
-		logString.append("(" + toString(newChildVariant,tuningPointVec) + "),");		
+		logString.append("(" + toString(population[idx-1],tuningParVec) + "),");
+		logString.append("(" + toString(newChildVariant,tuningParVec) + "),");		
 		
 		// Add reference in parent child map for evaluate function
 		parentChildMap[idx-1] = population.size()-1;		
 	}
 	logString.append("}");
 }
- 
-
-/*
- * Evaluate if the population from last 3 iterations are same OR
- * maximum no of iterations reached
- */
-//bool Gde3Algorithm::isSearchFinished() const {
-//	return searchFinishedVar;
-//}
-
 
 int Gde3Algorithm::getOptimum() {
 	//printing optimal value here
 	stringstream ssObjVal;
 	ssObjVal << optimalObjVal;
-	logString.append( "\nOptimal value found in iteration: " + ssObjVal.str() + "\n");
+	logString.append( "\nOptimal Value found in iteration: " + ssObjVal.str() + "\n");
+	logString.append( "Optimal Variant found in iteration: (" + this->optimalVariant + ")\n");
 	
 	return 0;
 }
@@ -184,10 +158,12 @@ int Gde3Algorithm::getOptimum() {
 bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 	
 	bool vectorFeasible = true;
+	
 	vector<TuningParameter*>::iterator iter;
 	map<TuningParameter*,int> vectormap = varEval.getValue();
+	vector<TuningParameter*> tuningParVec = this->searchSpace->getVariantSpace()->getTuningParameters();
 	
-	for(iter = tuningPointVec.begin();iter != tuningPointVec.end(); ++iter) {		
+	for(iter = tuningParVec.begin();iter != tuningParVec.end(); ++iter) { // may replace iter here by index of tuningParVec		
 		if(	vectormap[*iter] < (*iter)->getRangeFrom() ||
 			vectormap[*iter] > (*iter)->getRangeTo() ) {
 			vectorFeasible = false;
@@ -197,10 +173,11 @@ bool Gde3Algorithm::checkFeasible(Variant & varEval) {
 	return vectorFeasible;
 }
 
-int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string,vector<double> > & evalVec) {
-		
-	vector<double> parentMap = evalVec[toString(parent,tuningPointVec)];
-	vector<double> childMap = evalVec[toString(child,tuningPointVec)];
+int Gde3Algorithm::compareVariants(Variant & parent, Variant & child, map< string,vector<double> > & evalVec) {
+
+	vector<TuningParameter*> tuningParVec = this->searchSpace->getVariantSpace()->getTuningParameters();
+	vector<double> parentMap = evalVec[toString(parent,tuningParVec)];
+	vector<double> childMap = evalVec[toString(child,tuningParVec)];
 	
 	if(parentMap.size() != childMap.size()) {
 		cout << "Fatal Erorr !" << endl;
@@ -223,7 +200,7 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 	// compare for Parent dominance
 	bool parentDom = true;
 	for(size_t i=0; i<parentMap.size(); i++) {
-		if(parentMap[i] > childMap[i]) { // Minimization problem
+		if(parentMap[i] > childMap[i]) { // 'Minimization' problem
 			parentDom = false;
 			break;
 		}
@@ -236,7 +213,7 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 	// compare for child dominance
 	bool childDom = true;
 	for(size_t i=0; i<parentMap.size(); i++) {
-		if(parentMap[i] < childMap[i]) { // Minimization problem
+		if(parentMap[i] < childMap[i]) { // 'Minimization' problem
 			childDom = false;
 			break;
 		}
@@ -252,6 +229,7 @@ int Gde3Algorithm::compareVariants(Variant & parent, Variant & child,map< string
 bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 	
 	bool searchFinish = false;
+	vector<TuningParameter*> tuningParVec = this->searchSpace->getVariantSpace()->getTuningParameters();
 	
 	// evaluate all configurations in population	
 	for(std::size_t i=0; i<population.size(); i++)
@@ -264,7 +242,7 @@ bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 			int resultComp = compareVariants(population[parent], population[child], evalVec);
 			
 			if( resultComp == 0) { // both dominant
-				tobeDropped.insert(child);
+				tobeDropped.insert(child); // TODO: Remove after implemeting crowding distance logic, for multiple objective function
 			} else if(resultComp < 0) { //Parent Dominant
 				tobeDropped.insert(child);
 			} else if( resultComp > 0) { // Child Dominant
@@ -284,8 +262,8 @@ bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 				// send for evaluation
 				int resultComp = compareVariants(population[i], population[j],evalVec);
 				
-				if( resultComp == 0) { // both dominant
-					// do nothing, cannot lose dominant vectors
+				if( resultComp == 0) { // both non-dominant
+					// do nothing, cannot lose non-dominant vectors
 				} else if(resultComp < 0) { //Parent Dominant
 					tobeDropped.insert(j);
 				} else if( resultComp > 0) { // Child Dominant
@@ -303,7 +281,7 @@ bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 		}
 		
 		if(!resizingDone) { // all non-dominant vector, need to clean by crowding distance
-							// Logic for crowding distance
+							// TODO:Logic for crowding distance
 		}
 		
 		// clear elements from population vector
@@ -313,15 +291,24 @@ bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 	// Refill the unique set again, so that there are no repetition of configurations	
 	for( vector<Variant>::iterator iter = population.begin(); iter != population.end(); ++iter) {		
 		map<TuningParameter*,int> vectorMap = (*iter).getValue();
-		string uniqueElem = toString(*iter,tuningPointVec);
-		populElem.insert(uniqueElem);
+		string uniqueElem = toString(*iter,tuningParVec);
+		populElem.insert(uniqueElem);		
 	}
+	
+	// Print Population after cleaning
+	logString.append("Cleaned Population: \n { ");
+	for(vector<Variant>::iterator iter= population.begin();iter!= population.end(); ++iter) {
+		logString.append("(");
+		logString.append(toString(*iter, tuningParVec));
+		logString.append(") , ");
+	}
+	logString.append("}\n");
 	
 	// Priting evaluation of this generation, later this code can be removed
 	logString.append("Objective values after generation:\n {" );
 	for(vector<Variant>::iterator iter= population.begin();iter!= population.end(); ++iter) {
 		
-		vector<double> objVal = evalVec[toString(*iter,tuningPointVec)];
+		vector<double> objVal = evalVec[toString(*iter,tuningParVec)];
 		
 		logString.append("(");
 		for(size_t i=0; i<objVal.size(); i++) {
@@ -347,7 +334,7 @@ bool Gde3Algorithm::searchFinished( map< string,vector<double> > & evalVec ) {
 	// compare two population vectors
 	if(population.size() == recentPopulation.size()) {
 		for(std::size_t i=0; i< recentPopulation.size(); i++) {
-			if( toString(population[i],tuningPointVec) != toString(recentPopulation[i],tuningPointVec) ){
+			if( toString(population[i],tuningParVec) != toString(recentPopulation[i],tuningParVec) ){
 				generationEqual = false;
 				break;
 			}
@@ -374,12 +361,14 @@ void Gde3Algorithm::cleanupPopulation(map< string,vector<double> > & evalVec) {
 	
 	// End of iteration, cleanup mess
 	vector<Variant> popuNextGen;
+	vector<TuningParameter*> tuningParVec = this->searchSpace->getVariantSpace()->getTuningParameters();
+	
 	for(std::size_t i=0; i< population.size(); i++) {		
 		if(tobeDropped.count(i) != 1 ) { //not found
 			popuNextGen.push_back(population[i]);
 		} else {
 			// found in tobeDropped, remove from evalVec
-			evalVec.erase(toString(population[i],tuningPointVec));
+			evalVec.erase(toString(population[i],tuningParVec));
 		}
 	}
 	
